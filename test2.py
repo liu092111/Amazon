@@ -15,7 +15,6 @@ loaded_data = None
 loaded_file_path = None
 
 # 計算函式
-
 def compute_eta(Td, R, beta):
     return Td / (-np.log(R)) ** (1 / beta)
 
