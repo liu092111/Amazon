@@ -7,8 +7,8 @@ from scipy.special import gamma
 # === 載入資料 ===
 #df = pd.read_csv("simulated_weibull_lifetime.csv")
 #df = pd.read_csv("Sample_CSV__life_cycle_sample.csv")
-#df = pd.read_csv("Nanboom.csv")
-df = pd.read_csv("Emperor pan and tilt test to failure.csv")
+df = pd.read_csv("Nanboom2.csv")
+#df = pd.read_csv("Emperor pan and tilt test to failure.csv")
 data = pd.to_numeric(df.iloc[:, 0], errors='coerce').dropna().values
 x = np.linspace(min(data), max(data), 200)
 
@@ -150,9 +150,9 @@ def monte_carlo_lifetime_analysis(beta, eta, n_simulations=10000):
 # 執行蒙特卡羅模擬
 mc_results = monte_carlo_lifetime_analysis(wb_beta, wb_eta, 50000)
 
-print(f"B10 生命: {mc_results['B10']:.2f}")
-print(f"B50 生命: {mc_results['B50']:.2f}")
-print(f"B95 生命: {mc_results['B95']:.2f}")
+print(f"B10 lifecycle: {mc_results['B10']:.2f}")
+print(f"B50 lifecycle: {mc_results['B50']:.2f}")
+print(f"B95 lifecycle: {mc_results['B95']:.2f}")
 
 def sensitivity_analysis(base_beta, base_eta, param_variation=0.1, n_sims=5000):
     """參數敏感度分析"""
@@ -215,9 +215,9 @@ def reliability_prediction(original_data, beta, eta, target_time, n_monte_carlo=
     }
 
 # 預測在600時間單位時的可靠性
-reliability_pred = reliability_prediction(data, wb_beta, wb_eta, 15000)
-print(f"在次數15000時的可靠性: {reliability_pred['reliability_median']:.3f}")
-print(f"95%信賴區間: [{reliability_pred['reliability_lower']:.3f}, {reliability_pred['reliability_upper']:.3f}]")
+reliability_pred = reliability_prediction(data, wb_beta, wb_eta, 600)
+print(f"在次數600時的可靠性: {reliability_pred['reliability_median']:.3f}")
+print(f"95% confidence level: [{reliability_pred['reliability_lower']:.3f}, {reliability_pred['reliability_upper']:.3f}]")
 
 #######################################################################################################
 #視覺化
@@ -260,9 +260,13 @@ percentiles = np.percentile(mc_simulated_data, [10, 50, 90, 95, 99])
 
 plt.figure(figsize=(10, 6))
 plt.hist(mc_simulated_data, bins=50, density=True, alpha=0.6, color='skyblue', edgecolor='black')
-for p in percentiles:
-    plt.axvline(p, color='red', linestyle='--')
-    plt.text(p, plt.ylim()[1]*0.9, f'{p:.1f}', rotation=90, color='red')
+#建立標記
+percentile_labels = ['B10', 'B50', 'B90', 'B95', 'B99']
+for i, p in enumerate(percentiles):
+    plt.axvline(p, color='red', linestyle='--', alpha=0.7)
+    plt.text(p, plt.ylim()[1]*0.9, f'{percentile_labels[i]}: {p:.1f}', rotation=90,
+            verticalalignment='center', color='red', fontsize=9)
+
 
 plt.title('Monte Carlo Simulated Lifetime Distribution')
 plt.xlabel('Lifetime')
@@ -270,4 +274,3 @@ plt.ylabel('Density')
 plt.grid(True, linestyle='--', alpha=0.6)
 plt.tight_layout()
 plt.show()
-

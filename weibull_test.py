@@ -1,85 +1,93 @@
-import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.stats import chi2
+from scipy.stats import weibull_min, lognorm, expon
+from scipy.special import gamma
 
-def calculate():
-    try:
-        beta = float(entry_beta.get())
-        R = float(entry_reliability.get())
-        CL = float(entry_confidence.get())
-        Td = float(entry_demotime.get())
-        r = int(entry_r.get())
+class LifetimeAnalyzer:
+    def __init__(self, data):
+        self.data = data
+        self.wb_params = None
+        self.ln_params = None
+        self.ex_params = None
+        self.wb_beta = None
+        self.wb_eta = None
 
-        chi_val = chi2.ppf(CL, 2 * (r + 1))
-        lnR = np.log(R)
-        eta = Td / (-lnR) ** (1 / beta)
+    def fit_distributions(self):
+        self.wb_params = weibull_min.fit(self.data, floc=0)
+        self.wb_beta, _, self.wb_eta = self.wb_params
+        self.ln_params = lognorm.fit(self.data, floc=0)
+        self.ex_params = expon.fit(self.data, floc=0)
 
-        mode = mode_var.get()
+    def calculate_mttf(self):
+        wb_mttf = self.wb_eta * gamma(1 + 1 / self.wb_beta)
+        ln_mu = np.log(self.ln_params[2])
+        ln_sigma = self.ln_params[0]
+        ln_mttf = np.exp(ln_mu + 0.5 * ln_sigma ** 2)
+        ex_lambda = 1 / self.ex_params[1] if self.ex_params[1] != 0 else 1 / np.mean(self.data)
+        ex_mttf = 1 / ex_lambda
+        return wb_mttf, ln_mttf, ex_mttf
 
-        if mode == "Sample Size":
-            t = float(entry_testtime.get())
-            n = chi_val / ((t / eta) ** beta)
-            result_var.set(f"✅ Required Sample Size: {np.ceil(n):.0f} units")
-            plot_sample_vs_time(beta, eta, chi_val)
-        else:
-            n = int(entry_samplesize.get())
-            t = eta * (chi_val / n) ** (1 / beta)
-            result_var.set(f"✅ Required Test Time per Unit: {t:.2f} cycles")
+    def plot_pdf_comparison(self):
+        x = np.linspace(min(self.data), max(self.data), 200)
+        wb_pdf = weibull_min.pdf(x, *self.wb_params)
+        ln_pdf = lognorm.pdf(x, *self.ln_params)
+        ex_pdf = expon.pdf(x, *self.ex_params)
 
-    except Exception as e:
-        messagebox.showerror("Input Error", str(e))
+        wb_mttf, ln_mttf, ex_mttf = self.calculate_mttf()
 
-def plot_sample_vs_time(beta, eta, chi_val):
-    times = np.linspace(200, 1200, 50)
-    samples = chi_val / ((times / eta) ** beta)
-    plt.figure()
-    plt.plot(times, samples, "o-")
-    plt.title("Sample Size vs Test Time")
-    plt.xlabel("Test Time per Unit (cycles)")
-    plt.ylabel("Required Sample Size")
-    plt.grid(True)
-    plt.show()
+        plt.figure(figsize=(10, 6))
+        plt.hist(self.data, bins=20, density=True, alpha=0.5, label='Histogram')
+        plt.plot(x, wb_pdf, color='orange', label=f'Weibull PDF (MTTF={wb_mttf:.1f})')
+        plt.plot(x, ln_pdf, color='green', label=f'Lognormal PDF (MTTF={ln_mttf:.1f})')
+        plt.plot(x, ex_pdf, color='red', label=f'Exponential PDF (MTTF={ex_mttf:.1f})')
+        plt.axvline(wb_mttf, color='orange', linestyle='--')
+        plt.axvline(ln_mttf, color='green', linestyle='--')
+        plt.axvline(ex_mttf, color='red', linestyle='--')
+        plt.xlabel('Life Cycles')
+        plt.ylabel('Density')
+        plt.title('PDF Comparison')
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
 
-# ===== GUI START =====
-root = tk.Tk()
-root.title("Weibull Test Planner")
+    def bootstrap_weibull_params(self, n_bootstrap=1000):
+        n_samples = len(self.data)
+        bootstrap_params = []
+        for _ in range(n_bootstrap):
+            sample = np.random.choice(self.data, size=n_samples, replace=True)
+            params = weibull_min.fit(sample, floc=0)
+            bootstrap_params.append(params)
+        return np.array(bootstrap_params)
 
-# Mode
-mode_var = tk.StringVar(value="Sample Size")
-mode_menu = ttk.Combobox(root, textvariable=mode_var, values=["Sample Size", "Test Time"])
-mode_menu.grid(row=0, column=1)
-ttk.Label(root, text="Mode:").grid(row=0, column=0)
+    def monte_carlo_simulation(self, n_samples=10000):
+        sim_data = weibull_min.rvs(self.wb_beta, scale=self.wb_eta, size=n_samples)
+        percentiles = np.percentile(sim_data, [10, 50, 90, 95, 99])
+        return sim_data, percentiles
 
-# Inputs
-labels = ["Shape Parameter (β):", "Target Reliability (0.01–1.0):", "Confidence Level (0.01–1.0):",
-          "Demonstration Time (cycles):", "Test Time per Unit (cycles):", "Sample Size:", "Max Allowed Failures (r):"]
-entries = []
+    def plot_monte_carlo_distribution(self, sim_data, percentiles):
+        labels = ['B10', 'B50', 'B90', 'B95', 'B99']
+        plt.figure(figsize=(10, 6))
+        plt.hist(sim_data, bins=50, density=True, alpha=0.6, color='skyblue', edgecolor='black')
+        for i, p in enumerate(percentiles):
+            plt.axvline(p, color='red', linestyle='--')
+            plt.text(p, plt.ylim()[1]*0.9, f'{labels[i]}: {p:.1f}', rotation=90, color='red')
+        plt.title('Monte Carlo Simulated Lifetime Distribution')
+        plt.xlabel('Lifetime')
+        plt.ylabel('Density')
+        plt.grid(True, linestyle='--', alpha=0.6)
+        plt.tight_layout()
+        plt.show()
 
-for i, text in enumerate(labels):
-    ttk.Label(root, text=text).grid(row=i+1, column=0)
-    entry = ttk.Entry(root)
-    entry.grid(row=i+1, column=1)
-    entries.append(entry)
-
-entry_beta, entry_reliability, entry_confidence, entry_demotime, entry_testtime, entry_samplesize, entry_r = entries
-
-# Default Values
-entry_beta.insert(0, "1.5")
-entry_reliability.insert(0, "0.90")
-entry_confidence.insert(0, "0.90")
-entry_demotime.insert(0, "1000")
-entry_testtime.insert(0, "548")
-entry_samplesize.insert(0, "100")
-entry_r.insert(0, "0")
-
-# Calculate Button
-ttk.Button(root, text="Calculate", command=calculate).grid(row=8, column=0, columnspan=2, pady=10)
-
-# Result
-result_var = tk.StringVar()
-ttk.Label(root, textvariable=result_var, foreground="green").grid(row=9, column=0, columnspan=2)
-
-root.mainloop()
+    def sensitivity_analysis(self, param_variation=0.1, n_sims=5000):
+        results = {}
+        beta_range = np.linspace(self.wb_beta * (1 - param_variation), self.wb_beta * (1 + param_variation), 5)
+        eta_range = np.linspace(self.wb_eta * (1 - param_variation), self.wb_eta * (1 + param_variation), 5)
+        for i, beta_val in enumerate(beta_range):
+            sim_data = weibull_min.rvs(beta_val, scale=self.wb_eta, size=n_sims)
+            results[f'beta_{i}'] = {'beta': beta_val, 'eta': self.wb_eta, 'mttf': np.mean(sim_data), 'B10': np.percentile(sim_data, 10)}
+        for i, eta_val in enumerate(eta_range):
+            sim_data = weibull_min.rvs(self.wb_beta, scale=eta_val, size=n_sims)
+            results[f'eta_{i}'] = {'beta': self.wb_beta, 'eta': eta_val, 'mttf': np.mean(sim_data), 'B10': np.percentile(sim_data, 10)}
+        return results
