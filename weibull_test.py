@@ -5,89 +5,227 @@ from scipy.stats import weibull_min, lognorm, expon
 from scipy.special import gamma
 
 class LifetimeAnalyzer:
-    def __init__(self, data):
-        self.data = data
-        self.wb_params = None
-        self.ln_params = None
-        self.ex_params = None
-        self.wb_beta = None
-        self.wb_eta = None
+    def __init__(self, filepath):
+        self.filepath = filepath
+        self.data = pd.to_numeric(pd.read_csv(filepath).iloc[:, 0], errors='coerce').dropna().values
+        self.x = np.linspace(min(self.data), max(self.data), 200)
+        self.results = {}
+        self.best_model = None
 
     def fit_distributions(self):
-        self.wb_params = weibull_min.fit(self.data, floc=0)
-        self.wb_beta, _, self.wb_eta = self.wb_params
-        self.ln_params = lognorm.fit(self.data, floc=0)
-        self.ex_params = expon.fit(self.data, floc=0)
+        # === Weibull ===
+        wb_params = weibull_min.fit(self.data, floc=0)
+        wb_beta, _, wb_eta = wb_params
+        wb_pdf = weibull_min.pdf(self.x, *wb_params)
+        wb_sf = weibull_min.sf(self.x, *wb_params)
+        wb_ll = np.sum(weibull_min.logpdf(self.data, *wb_params))
+        wb_mttf = wb_eta * gamma(1 + 1 / wb_beta)
+        wb_label = rf"Weibull: $S(t)=\exp(-(\frac{{t}}{{\eta}})^{{\beta}})$, " \
+                   rf"$\beta={wb_beta:.2f}$, $\eta={wb_eta:.2f}$, MTTF={wb_mttf:.2f}"
 
-    def calculate_mttf(self):
-        wb_mttf = self.wb_eta * gamma(1 + 1 / self.wb_beta)
-        ln_mu = np.log(self.ln_params[2])
-        ln_sigma = self.ln_params[0]
-        ln_mttf = np.exp(ln_mu + 0.5 * ln_sigma ** 2)
-        ex_lambda = 1 / self.ex_params[1] if self.ex_params[1] != 0 else 1 / np.mean(self.data)
+        self.results['Weibull'] = {
+            'pdf': wb_pdf, 'sf': wb_sf, 'll': wb_ll,
+            'mttf': wb_mttf, 'label': wb_label, 'color': 'orange'
+        }
+        self.weibull_params = {
+            'beta': wb_beta,
+            'eta': wb_eta
+        }
+
+
+        # === Lognormal ===
+        ln_params = lognorm.fit(self.data, floc=0)
+        ln_sigma, _, ln_scale = ln_params
+        ln_mu = np.log(ln_scale)
+        ln_pdf = lognorm.pdf(self.x, *ln_params)
+        ln_sf = lognorm.sf(self.x, *ln_params)
+        ln_ll = np.sum(lognorm.logpdf(self.data, *ln_params))
+        ln_mttf = np.exp(ln_mu + 0.5 * ln_sigma**2)
+        ln_label = rf"Lognormal: $S(t)=1-\Phi((\ln t-\mu)/\sigma)$, " \
+                   rf"$\mu={ln_mu:.2f}$, $\sigma={ln_sigma:.2f}$, MTTF={ln_mttf:.2f}"
+
+        self.results['Lognormal'] = {
+            'pdf': ln_pdf, 'sf': ln_sf, 'll': ln_ll,
+            'mttf': ln_mttf, 'label': ln_label, 'color': 'green'
+        }
+
+        # === Exponential ===
+        ex_params = expon.fit(self.data, floc=0)
+        ex_lambda = 1 / ex_params[1] if ex_params[1] != 0 else 1 / np.mean(self.data)
+        ex_pdf = expon.pdf(self.x, *ex_params)
+        ex_sf = expon.sf(self.x, *ex_params)
+        ex_ll = np.sum(expon.logpdf(self.data, *ex_params))
         ex_mttf = 1 / ex_lambda
-        return wb_mttf, ln_mttf, ex_mttf
+        ex_label = rf"Exponential: $S(t)=\exp(-\lambda t)$, " \
+                   rf"$\lambda={ex_lambda:.2f}$, MTTF={ex_mttf:.2f}"
+
+        self.results['Exponential'] = {
+            'pdf': ex_pdf, 'sf': ex_sf, 'll': ex_ll,
+            'mttf': ex_mttf, 'label': ex_label, 'color': 'red'
+        }
+
+        # === Determine Best Fit ===
+        self.best_model = max(self.results, key=lambda k: self.results[k]['ll'])
+
+    def plot_histogram(self):
+        plt.figure(figsize=(8, 5))
+        plt.hist(self.data, bins=20, density=True, alpha=0.5, color='skyblue', edgecolor='black')
+        plt.xlabel("Life Cycles")
+        plt.ylabel("Probability Density")
+        plt.title("Histogram of Lifetime Data")
+        plt.grid(True, linestyle='--', alpha=0.6)
+        plt.tight_layout()
+        plt.show()
 
     def plot_pdf_comparison(self):
-        x = np.linspace(min(self.data), max(self.data), 200)
-        wb_pdf = weibull_min.pdf(x, *self.wb_params)
-        ln_pdf = lognorm.pdf(x, *self.ln_params)
-        ex_pdf = expon.pdf(x, *self.ex_params)
+        plt.figure(figsize=(8, 5))
+        plt.hist(self.data, bins=20, density=True, alpha=0.5)
+        for name, res in self.results.items():
+            plt.plot(self.x, res['pdf'], color=res['color'], label=res['label'])
+            plt.axvline(res['mttf'], color=res['color'], linestyle='--', alpha=0.6)
+        plt.xlabel("Time")
+        plt.ylabel("Density")
+        plt.title("PDF Distribution Comparison")
+        plt.legend(title=f"Best Fit: {self.best_model}", fontsize=10)
+        plt.grid(True)
+        plt.show()
 
-        wb_mttf, ln_mttf, ex_mttf = self.calculate_mttf()
-
+    def plot_survival_comparison(self):
         plt.figure(figsize=(10, 6))
-        plt.hist(self.data, bins=20, density=True, alpha=0.5, label='Histogram')
-        plt.plot(x, wb_pdf, color='orange', label=f'Weibull PDF (MTTF={wb_mttf:.1f})')
-        plt.plot(x, ln_pdf, color='green', label=f'Lognormal PDF (MTTF={ln_mttf:.1f})')
-        plt.plot(x, ex_pdf, color='red', label=f'Exponential PDF (MTTF={ex_mttf:.1f})')
-        plt.axvline(wb_mttf, color='orange', linestyle='--')
-        plt.axvline(ln_mttf, color='green', linestyle='--')
-        plt.axvline(ex_mttf, color='red', linestyle='--')
-        plt.xlabel('Life Cycles')
-        plt.ylabel('Density')
-        plt.title('PDF Comparison')
-        plt.legend()
+        for name, res in self.results.items():
+            plt.plot(self.x, res['sf'], color=res['color'], label=res['label'])
+            plt.axvline(res['mttf'], color=res['color'], linestyle='--', alpha=0.6)
+        plt.ylabel("Survival Probability")
+        plt.title("Survival Function Comparison")
+        plt.legend(title=f"Best Fit: {self.best_model}", fontsize=10)
         plt.grid(True)
         plt.tight_layout()
         plt.show()
 
-    def bootstrap_weibull_params(self, n_bootstrap=1000):
+class LifetimeAnalyzerMC:
+    def __init__(self, data, beta=None, eta=None):
+        self.data = np.array(data)
+        self.beta = beta
+        self.eta = eta
+
+    def print_bootstrap_weibull_params(self, n_bootstrap=1000):
         n_samples = len(self.data)
         bootstrap_params = []
         for _ in range(n_bootstrap):
             sample = np.random.choice(self.data, size=n_samples, replace=True)
             params = weibull_min.fit(sample, floc=0)
             bootstrap_params.append(params)
-        return np.array(bootstrap_params)
+        bootstrap_params = np.array(bootstrap_params)
+        beta_samples = bootstrap_params[:, 0]
+        eta_samples = bootstrap_params[:, 2]
+        beta_ci = np.percentile(beta_samples, [2.5, 97.5])
+        eta_ci = np.percentile(eta_samples, [2.5, 97.5])
+        print(f"Beta 95% CI: [{beta_ci[0]:.2f}, {beta_ci[1]:.2f}]")
+        print(f"Eta 95% CI: [{eta_ci[0]:.2f}, {eta_ci[1]:.2f}]")
+        return {
+            'beta_ci': beta_ci,
+            'eta_ci': eta_ci,
+            'beta_samples': beta_samples,
+            'eta_samples': eta_samples
+        }
 
-    def monte_carlo_simulation(self, n_samples=10000):
-        sim_data = weibull_min.rvs(self.wb_beta, scale=self.wb_eta, size=n_samples)
-        percentiles = np.percentile(sim_data, [10, 50, 90, 95, 99])
-        return sim_data, percentiles
+    def print_monte_carlo_lifetime(self, beta=None, eta=None, n_simulations=10000):
+        beta = beta if beta is not None else self.beta
+        eta = eta if eta is not None else self.eta
+        simulated_data = weibull_min.rvs(beta, scale=eta, size=n_simulations)
+        percentiles = np.percentile(simulated_data, [10, 50, 90, 95, 99])
+        print(f"B10 lifecycle: {percentiles[0]:.2f}")
+        print(f"B50 lifecycle: {percentiles[1]:.2f}")
+        print(f"B95 lifecycle: {percentiles[3]:.2f}")
+        return {
+            'B10': percentiles[0],
+            'B50': percentiles[1],
+            'B95': percentiles[3],
+            'simulated_data': simulated_data
+        }
 
-    def plot_monte_carlo_distribution(self, sim_data, percentiles):
-        labels = ['B10', 'B50', 'B90', 'B95', 'B99']
+    def print_reliability_at_cycles(self, cycles, beta=None, eta=None, ci=0.95, n_bootstrap=1000):
+        beta = beta if beta is not None else self.beta
+        eta = eta if eta is not None else self.eta
+        reliabilities = []
+        for _ in range(n_bootstrap):
+            sample = np.random.choice(self.data, size=len(self.data), replace=True)
+            params = weibull_min.fit(sample, floc=0)
+            b, _, e = params
+            reliability = np.exp(-(cycles / e) ** b)
+            reliabilities.append(reliability)
+        reliabilities = np.array(reliabilities)
+        lower = np.percentile(reliabilities, (1 - ci) / 2 * 100)
+        upper = np.percentile(reliabilities, (1 + ci) / 2 * 100)
+        median = np.median(reliabilities)
+        print(f"在次數{cycles}時的可靠性: {median:.3f}")
+        print(f"{int(ci*100)}% confidence level: [{lower:.3f}, {upper:.3f}]")
+        return {
+            'reliability_median': median,
+            'reliability_lower': lower,
+            'reliability_upper': upper
+        }
+
+class LifetimeAnalyzerPlot:
+    """
+    提供 Bootstrap 參數分布與蒙特卡羅壽命分布的視覺化功能。
+    """
+
+    def __init__(self, data, beta=None, eta=None):
+        self.data = np.array(data)
+        self.beta = beta
+        self.eta = eta
+
+    def plot_bootstrap_weibull_params(self, n_bootstrap=1000):
+        """
+        繪製 Bootstrap 參數分布直方圖（Beta, Eta）
+        """
+        n_samples = len(self.data)
+        bootstrap_params = []
+        for _ in range(n_bootstrap):
+            sample = np.random.choice(self.data, size=n_samples, replace=True)
+            params = weibull_min.fit(sample, floc=0)
+            bootstrap_params.append(params)
+        bootstrap_params = np.array(bootstrap_params)
+        beta_samples = bootstrap_params[:, 0]
+        eta_samples = bootstrap_params[:, 2]
+
+        plt.figure(figsize=(12, 5))
+        plt.subplot(1, 2, 1)
+        plt.hist(beta_samples, bins=30, color='skyblue', edgecolor='black')
+        plt.title('Bootstrap Distribution of Beta')
+        plt.xlabel('Beta')
+        plt.ylabel('Frequency')
+
+        plt.subplot(1, 2, 2)
+        plt.hist(eta_samples, bins=30, color='lightgreen', edgecolor='black')
+        plt.title('Bootstrap Distribution of Eta')
+        plt.xlabel('Eta')
+        plt.ylabel('Frequency')
+
+        plt.tight_layout()
+        plt.show()
+
+    def plot_monte_carlo_lifetime(self, beta=None, eta=None, n_simulations=50000):
+        """
+        繪製蒙特卡羅壽命分布直方圖，並標示 B10/B50/B90/B95/B99
+        """
+        beta = beta if beta is not None else self.beta
+        eta = eta if eta is not None else self.eta
+        np.random.seed(0)
+        mc_simulated_data = weibull_min.rvs(beta, scale=eta, size=n_simulations)
+        percentiles = np.percentile(mc_simulated_data, [10, 50, 90, 95, 99])
+
         plt.figure(figsize=(10, 6))
-        plt.hist(sim_data, bins=50, density=True, alpha=0.6, color='skyblue', edgecolor='black')
+        plt.hist(mc_simulated_data, bins=50, density=True, alpha=0.6, color='skyblue', edgecolor='black')
+        percentile_labels = ['B10', 'B50', 'B90', 'B95', 'B99']
         for i, p in enumerate(percentiles):
-            plt.axvline(p, color='red', linestyle='--')
-            plt.text(p, plt.ylim()[1]*0.9, f'{labels[i]}: {p:.1f}', rotation=90, color='red')
+            plt.axvline(p, color='red', linestyle='--', alpha=0.7)
+            plt.text(p, plt.ylim()[1]*0.9, f'{percentile_labels[i]}: {p:.1f}', rotation=90,
+                     verticalalignment='center', color='red', fontsize=9)
         plt.title('Monte Carlo Simulated Lifetime Distribution')
         plt.xlabel('Lifetime')
         plt.ylabel('Density')
         plt.grid(True, linestyle='--', alpha=0.6)
         plt.tight_layout()
         plt.show()
-
-    def sensitivity_analysis(self, param_variation=0.1, n_sims=5000):
-        results = {}
-        beta_range = np.linspace(self.wb_beta * (1 - param_variation), self.wb_beta * (1 + param_variation), 5)
-        eta_range = np.linspace(self.wb_eta * (1 - param_variation), self.wb_eta * (1 + param_variation), 5)
-        for i, beta_val in enumerate(beta_range):
-            sim_data = weibull_min.rvs(beta_val, scale=self.wb_eta, size=n_sims)
-            results[f'beta_{i}'] = {'beta': beta_val, 'eta': self.wb_eta, 'mttf': np.mean(sim_data), 'B10': np.percentile(sim_data, 10)}
-        for i, eta_val in enumerate(eta_range):
-            sim_data = weibull_min.rvs(self.wb_beta, scale=eta_val, size=n_sims)
-            results[f'eta_{i}'] = {'beta': self.wb_beta, 'eta': eta_val, 'mttf': np.mean(sim_data), 'B10': np.percentile(sim_data, 10)}
-        return results

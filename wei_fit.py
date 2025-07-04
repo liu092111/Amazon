@@ -5,8 +5,6 @@ from scipy.stats import weibull_min, lognorm, expon
 from scipy.special import gamma
 
 # === 載入資料 ===
-#df = pd.read_csv("simulated_weibull_lifetime.csv")
-#df = pd.read_csv("Sample_CSV__life_cycle_sample.csv")
 df = pd.read_csv("Nanboom2.csv")
 #df = pd.read_csv("Emperor pan and tilt test to failure.csv")
 data = pd.to_numeric(df.iloc[:, 0], errors='coerce').dropna().values
@@ -96,6 +94,7 @@ plt.legend(title=f"Best Fit: {best_model}", loc="best", fontsize=10)
 plt.grid(True)
 plt.tight_layout()
 plt.show()
+
 
 #################################################################################
 #利用蒙特卡羅輔助 大量隨機數模擬
@@ -210,7 +209,7 @@ def reliability_prediction(original_data, beta, eta, target_time, n_monte_carlo=
     return {
         'reliability_median': reliability_ci[1],
         'reliability_lower': reliability_ci[0],
-        'reliability_upper': reliability_ci[2],
+        'reliability_upper': reliability_ci[2], 
         'all_estimates': reliability_estimates
     }
 
