@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.stats import weibull_min, lognorm, expon
+from scipy.stats import weibull_min, lognorm, expon, ks_2samp
 from scipy.special import gamma
+from statsmodels.distributions.empirical_distribution import ECDF
 
 class LifetimeAnalyzer:
     def __init__(self, filepath):
@@ -272,3 +273,74 @@ class LifetimeAnalyzerPlot:
         plt.grid(True, linestyle='--', alpha=0.6)
         plt.tight_layout()
         plt.show()
+
+    def plot_simulated_vs_actual(self, beta=None, eta=None, n_simulations=10000):
+        """
+        比較模擬與真實資料的 Histogram 與 CDF 疊圖，並進行 KS 檢定。
+        """
+        beta = beta if beta is not None else self.beta
+        eta = eta if eta is not None else self.eta
+        np.random.seed(0)
+        simulated_data = weibull_min.rvs(beta, scale=eta, size=n_simulations)
+        actual_data = self.data
+
+        # === [1] Histogram 疊圖 ===
+        plt.figure(figsize=(12, 5))
+        plt.subplot(1, 2, 1)
+        plt.hist(actual_data, bins=30, density=True, alpha=0.6,
+                label='Actual Data', color='steelblue', edgecolor='black')
+        plt.hist(simulated_data, bins=50, density=True, alpha=0.4,
+                label='Simulated (MC)', color='orange', edgecolor='black')
+        x_vals = np.linspace(0, max(max(simulated_data), max(actual_data)), 500)
+        plt.plot(x_vals, weibull_min.pdf(x_vals, beta, scale=eta), 'r--', lw=2, label='Theoretical Weibull PDF')
+        plt.title('Histogram: Simulated vs Actual')
+        plt.xlabel('Lifetime')
+        plt.ylabel('Density')
+        plt.legend()
+        plt.grid(True, linestyle='--', alpha=0.5)
+
+        # === [2] CDF 疊圖 + KS test ===
+        plt.subplot(1, 2, 2)
+        ecdf_actual = ECDF(actual_data)
+        ecdf_sim = ECDF(simulated_data)
+
+        # KS test
+        ks_stat, p_value = ks_2samp(actual_data, simulated_data)
+        ks_stat_label = f"KS D = {ks_stat:.3f}, p = {p_value:.3f}"
+
+        # 找最大差異點（視覺標註）
+        x_common = np.linspace(min(actual_data.min(), simulated_data.min()),
+                            max(actual_data.max(), simulated_data.max()), 1000)
+        y_actual = ECDF(actual_data)(x_common)
+        y_sim = ECDF(simulated_data)(x_common)
+        diff = np.abs(y_actual - y_sim)
+        max_diff_index = np.argmax(diff)
+        ks_x = x_common[max_diff_index]
+        ks_y1 = y_actual[max_diff_index]
+        ks_y2 = y_sim[max_diff_index]
+
+        plt.plot(ecdf_actual.x, ecdf_actual.y, label='Empirical CDF (Actual)', lw=2, color='blue')
+        plt.plot(ecdf_sim.x, ecdf_sim.y, label='Empirical CDF (Simulated)', lw=2, color='orange', linestyle='--')
+        plt.plot(x_vals, weibull_min.cdf(x_vals, beta, scale=eta), 'r-', label='Theoretical Weibull CDF')
+
+        # 標出最大差異 KS 距離
+        plt.vlines(ks_x, ks_y1, ks_y2, color='black', linestyle=':', linewidth=1.5, label='KS Distance')
+        plt.text(ks_x + 10, (ks_y1 + ks_y2) / 2, f"D={ks_stat:.3f}", color='black', fontsize=9)
+
+        plt.title('CDF Comparison (with KS Test)')
+        plt.xlabel('Lifetime')
+        plt.ylabel('Cumulative Probability')
+        plt.legend()
+        plt.grid(True, linestyle='--', alpha=0.5)
+
+        plt.tight_layout()
+        plt.show()
+
+        # === [3] Print 結論 ===
+        print(f"\n=== [4] Kolmogorov-Smirnov Test ===")
+        print(f"KS Statistic (D): {ks_stat:.4f}")
+        print(f"P-value: {p_value:.4f}")
+        if p_value > 0.05:
+            print("✅ Conclusion: Simulated and actual data are likely from the same distribution (no significant difference, p > 0.05).")
+        else:
+            print("❌ Conclusion: Simulated and actual data are significantly different (p < 0.05).")

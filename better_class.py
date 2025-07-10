@@ -21,3 +21,6 @@ mc.print_reliability_at_cycles(cycles=600)
 plotter = LifetimeAnalyzerPlot(analyzer.data, beta, eta)
 plotter.plot_bootstrap_weibull_params(n_bootstrap=10000)
 plotter.plot_monte_carlo_lifetime(n_simulations=10000)
+
+plot = LifetimeAnalyzerPlot(analyzer.data, beta=3.2, eta=728)
+plot.plot_simulated_vs_actual(n_simulations=10000)
