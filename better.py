@@ -120,11 +120,26 @@ class LifetimeAnalyzerMC:
         eta_samples = bootstrap_params[:, 2]
         beta_ci = np.percentile(beta_samples, [2.5, 97.5])
         eta_ci = np.percentile(eta_samples, [2.5, 97.5])
-        print(f"Beta 95% CI: [{beta_ci[0]:.2f}, {beta_ci[1]:.2f}]")
-        print(f"Eta 95% CI: [{eta_ci[0]:.2f}, {eta_ci[1]:.2f}]")
+        beta_mean = np.mean(beta_samples)
+        eta_mean = np.mean(eta_samples)
+        print("\n=== [1] Bootstrap Analysis — Parameter Estimation ===")
+        print(f"Method: Resampling from original dataset (n = {n_samples}) with replacement, {n_bootstrap} iterations")
+        print(f"Estimated Weibull parameters:")
+        print(f"  - Beta (shape):")
+        print(f"      ▸ 95% CI  : [{beta_ci[0]:.2f}, {beta_ci[1]:.2f}]")
+        print(f"      ▸ Mean    : {beta_mean:.2f}")
+        print(f"  - Eta (scale):")
+        print(f"      ▸ 95% CI  : [{eta_ci[0]:.2f}, {eta_ci[1]:.2f}]")
+        print(f"      ▸ Mean    : {eta_mean:.2f}")
+
+        self.beta = beta_mean
+        self.eta = eta_mean
+
         return {
             'beta_ci': beta_ci,
             'eta_ci': eta_ci,
+            'beta_mean': beta_mean,
+            'eta_mean': eta_mean,
             'beta_samples': beta_samples,
             'eta_samples': eta_samples
         }
@@ -134,13 +149,19 @@ class LifetimeAnalyzerMC:
         eta = eta if eta is not None else self.eta
         simulated_data = weibull_min.rvs(beta, scale=eta, size=n_simulations)
         percentiles = np.percentile(simulated_data, [10, 50, 90, 95, 99])
-        print(f"B10 lifecycle: {percentiles[0]:.2f}")
-        print(f"B50 lifecycle: {percentiles[1]:.2f}")
-        print(f"B95 lifecycle: {percentiles[3]:.2f}")
+        mttf = np.mean(simulated_data)
+        print("\n=== [2] Monte Carlo Simulation — Lifetime Prediction ===")
+        print(f"Method: Simulated {n_simulations:,} failure times from Weibull(beta={beta:.2f}, eta={eta:.2f})")
+        print(f"Predicted lifecycle percentiles:")
+        print(f"  - B10 (10% fail)  : {percentiles[0]:.2f}")
+        print(f"  - B50 (median)    : {percentiles[1]:.2f}")
+        print(f"  - B95 (95% fail)  : {percentiles[3]:.2f}")
+        print(f"  - MTTF (Average)  : {mttf:.2f}")
         return {
             'B10': percentiles[0],
             'B50': percentiles[1],
             'B95': percentiles[3],
+            'MTTF': mttf,
             'simulated_data': simulated_data
         }
 
@@ -158,8 +179,12 @@ class LifetimeAnalyzerMC:
         lower = np.percentile(reliabilities, (1 - ci) / 2 * 100)
         upper = np.percentile(reliabilities, (1 + ci) / 2 * 100)
         median = np.median(reliabilities)
-        print(f"在次數{cycles}時的可靠性: {median:.3f}")
-        print(f"{int(ci*100)}% confidence level: [{lower:.3f}, {upper:.3f}]")
+        print(f"\n=== [3] Reliability Estimation at {cycles} Cycles ===")
+        print(f"Method: Bootstrap reliability curve using {n_bootstrap} resampled datasets")
+        print(f"Estimated reliability at cycle = {cycles}:")
+        print(f"  - Median reliability     : {median:.3f}")
+        print(f"  - {int(ci*100)}% Confidence Interval : [{lower:.3f}, {upper:.3f}]")
+
         return {
             'reliability_median': median,
             'reliability_lower': lower,
@@ -190,18 +215,32 @@ class LifetimeAnalyzerPlot:
         beta_samples = bootstrap_params[:, 0]
         eta_samples = bootstrap_params[:, 2]
 
+        beta_mean = np.mean(beta_samples)
+        beta_ci = np.percentile(beta_samples, [2.5, 97.5])
+
+        eta_mean = np.mean(eta_samples)
+        eta_ci = np.percentile(eta_samples, [2.5, 97.5])
+
         plt.figure(figsize=(12, 5))
         plt.subplot(1, 2, 1)
-        plt.hist(beta_samples, bins=30, color='skyblue', edgecolor='black')
+        plt.hist(beta_samples, bins=30, color='skyblue', edgecolor='black', alpha=0.7, label='Beta Samples')
+        plt.axvline(beta_mean, color='red', linestyle='-', label=f'Mean = {beta_mean:.2f}')
+        plt.axvline(beta_ci[0], color='green', linestyle='--', label=f'2.5% = {beta_ci[0]:.2f}')
+        plt.axvline(beta_ci[1], color='green', linestyle='--', label=f'97.5% = {beta_ci[1]:.2f}')
         plt.title('Bootstrap Distribution of Beta')
         plt.xlabel('Beta')
         plt.ylabel('Frequency')
+        plt.legend()
 
         plt.subplot(1, 2, 2)
-        plt.hist(eta_samples, bins=30, color='lightgreen', edgecolor='black')
+        plt.hist(eta_samples, bins=30, color='lightgreen', edgecolor='black', alpha=0.7, label='Eta Samples')
+        plt.axvline(eta_mean, color='red', linestyle='-', label=f'Mean = {eta_mean:.2f}')
+        plt.axvline(eta_ci[0], color='green', linestyle='--', label=f'2.5% = {eta_ci[0]:.2f}')
+        plt.axvline(eta_ci[1], color='green', linestyle='--', label=f'97.5% = {eta_ci[1]:.2f}')
         plt.title('Bootstrap Distribution of Eta')
         plt.xlabel('Eta')
         plt.ylabel('Frequency')
+        plt.legend()
 
         plt.tight_layout()
         plt.show()
@@ -221,8 +260,12 @@ class LifetimeAnalyzerPlot:
         percentile_labels = ['B10', 'B50', 'B90', 'B95', 'B99']
         for i, p in enumerate(percentiles):
             plt.axvline(p, color='red', linestyle='--', alpha=0.7)
-            plt.text(p, plt.ylim()[1]*0.9, f'{percentile_labels[i]}: {p:.1f}', rotation=90,
+            y_text = plt.ylim()[1] * (0.85 - i * 0.01)
+            x_text = p + (plt.xlim()[1] - plt.xlim()[0]) * 0.01
+            plt.text(x_text, y_text, f'{percentile_labels[i]}: {p:.1f}', rotation=90,
                      verticalalignment='center', color='red', fontsize=9)
+            #plt.text(p, plt.ylim()[1]*0.9, f'{percentile_labels[i]}: {p:.1f}', rotation=90,
+                     #verticalalignment='center', color='red', fontsize=9)
         plt.title('Monte Carlo Simulated Lifetime Distribution')
         plt.xlabel('Lifetime')
         plt.ylabel('Density')
