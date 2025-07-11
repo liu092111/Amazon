@@ -4,6 +4,7 @@ import pandas as pd
 
 # 1. 先用 LifetimeAnalyzer 進行分布擬合
 analyzer = LifetimeAnalyzer("Nanboom2.csv")
+#analyzer = LifetimeAnalyzer("Emperor pan and tilt test to failure.csv")
 analyzer.fit_distributions()
 analyzer.plot_histogram()
 analyzer.plot_pdf_comparison()

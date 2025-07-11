@@ -70,7 +70,7 @@ class LifetimeAnalyzer:
 
     def plot_histogram(self):
         plt.figure(figsize=(8, 5))
-        plt.hist(self.data, bins=20, density=True, alpha=0.5, color='skyblue', edgecolor='black')
+        plt.hist(self.data, bins=30, density=True, alpha=0.5, color='skyblue', edgecolor='black')
         plt.xlabel("Life Cycles")
         plt.ylabel("Probability Density")
         plt.title("Histogram of Lifetime Data")
@@ -280,8 +280,9 @@ class LifetimeAnalyzerPlot:
         """
         beta = beta if beta is not None else self.beta
         eta = eta if eta is not None else self.eta
-        np.random.seed(0)
-        simulated_data = weibull_min.rvs(beta, scale=eta, size=n_simulations)
+        params = weibull_min.fit(self.data)  # 不設 floc
+        beta, loc, eta = params
+        simulated_data = weibull_min.rvs(beta, loc=loc, scale=eta, size=n_simulations)
         actual_data = self.data
 
         # === [1] Histogram 疊圖 ===
@@ -292,7 +293,7 @@ class LifetimeAnalyzerPlot:
         plt.hist(simulated_data, bins=50, density=True, alpha=0.4,
                 label='Simulated (MC)', color='orange', edgecolor='black')
         x_vals = np.linspace(0, max(max(simulated_data), max(actual_data)), 500)
-        plt.plot(x_vals, weibull_min.pdf(x_vals, beta, scale=eta), 'r--', lw=2, label='Theoretical Weibull PDF')
+        plt.plot(x_vals, weibull_min.pdf(x_vals, beta, loc=loc, scale=eta), 'r--', lw=2, label='Theoretical Weibull PDF')
         plt.title('Histogram: Simulated vs Actual')
         plt.xlabel('Lifetime')
         plt.ylabel('Density')
@@ -321,7 +322,7 @@ class LifetimeAnalyzerPlot:
 
         plt.plot(ecdf_actual.x, ecdf_actual.y, label='Empirical CDF (Actual)', lw=2, color='blue')
         plt.plot(ecdf_sim.x, ecdf_sim.y, label='Empirical CDF (Simulated)', lw=2, color='orange', linestyle='--')
-        plt.plot(x_vals, weibull_min.cdf(x_vals, beta, scale=eta), 'r-', label='Theoretical Weibull CDF')
+        plt.plot(x_vals, weibull_min.cdf(x_vals, beta, loc=loc, scale=eta), 'r-', label='Theoretical Weibull CDF')
 
         # 標出最大差異 KS 距離
         plt.vlines(ks_x, ks_y1, ks_y2, color='black', linestyle=':', linewidth=1.5, label='KS Distance')
