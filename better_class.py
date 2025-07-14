@@ -14,14 +14,12 @@ eta = analyzer.weibull_params['eta']
 
 # 2. 建立 LifetimeAnalyzerMC 進行統計分析
 mc = LifetimeAnalyzerMC(analyzer.data, beta, eta)
-mc.print_bootstrap_weibull_params()
-mc.print_monte_carlo_lifetime()
+bootstrap_result = mc.print_bootstrap_weibull_params()
+mc_result = mc.print_monte_carlo_lifetime()
 mc.print_reliability_at_cycles(cycles=600)
 
 # 3. 建立 LifetimeAnalyzerPlot 進行視覺化
-plotter = LifetimeAnalyzerPlot(analyzer.data, beta, eta)
-plotter.plot_bootstrap_weibull_params(n_bootstrap=10000)
-plotter.plot_monte_carlo_lifetime(n_simulations=10000)
-
-plot = LifetimeAnalyzerPlot(analyzer.data, beta=3.2, eta=728)
-plot.plot_simulated_vs_actual(n_simulations=10000)
+plotter = LifetimeAnalyzerPlot(data=mc.data, bootstrap_result=bootstrap_result, mc_result=mc_result)
+plotter.plot_bootstrap_histograms()
+plotter.plot_mc_histogram()
+plotter.plot_simulated_vs_actual()

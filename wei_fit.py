@@ -221,7 +221,7 @@ print(f"95% confidence level: [{reliability_pred['reliability_lower']:.3f}, {rel
 #######################################################################################################
 #視覺化
 # 假設 data 是你的原始資料或模擬資料
-np.random.seed(0)
+#np.random.seed(0)
 data = weibull_min.rvs(3.09, scale=729.22, size=30)
 
 def bootstrap_weibull_params(data, n_bootstrap=1000):
