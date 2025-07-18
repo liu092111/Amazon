@@ -4,6 +4,7 @@ import re
 from tkinter import filedialog, messagebox
 from better import LifetimeAnalyzer, LifetimeAnalyzerMC, LifetimeAnalyzerPlot
 from fpdf import FPDF
+from fpdf.enums import XPos, YPos
 import os
 
 class LifetimeGUI:
@@ -51,24 +52,32 @@ class LifetimeGUI:
         pdf.set_auto_page_break(auto=True, margin=15)
 
         # ✅ 使用支援 Unicode 的 TTF 字型
-        font_path = "fonts/NotoSans-Regular.ttf"  # 確保這個路徑正確
-        if not os.path.exists(font_path):
-            messagebox.showerror("Font Missing", f"請先下載 NotoSans-Regular.ttf 並放到 fonts 資料夾中。\n缺少：{font_path}")
+        font_path_regular = "fonts/NotoSans-Regular.ttf"
+        font_path_bold = "fonts/NotoSans-Bold.ttf"
+        if not os.path.exists(font_path_regular):
+            messagebox.showerror("Font Missing", f"請先下載 NotoSans-Regular.ttf 並放到 fonts 資料夾中。\n缺少：{font_path_regular}")
             return
-        pdf.add_font("Noto", "", font_path, uni=True)
-        pdf.set_font("Noto", size=10)
-
-        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        pdf.add_font("Noto", "", font_path_regular)
+        pdf.add_font("Noto", "B", font_path_bold)
+        pdf.set_font("Noto", size=10,)            # 正常字體
+        pdf.set_font("Noto", style="B", size=14) # 粗體字體
 
         for line in self.output_buffer:
             for subline in line.split('\n'):
-                try:
-                    pdf.cell(0, 8, txt=subline, ln=True)
-                except Exception as e:
-                    print(f"[Warning] 跳過一行無法編碼：{subline[:30]}...")
+                subline = subline.strip()
+                if not subline:
+                    continue
 
+                if subline.startswith("[BOLD14]"):
+                    text = subline.replace("[BOLD14]", "").strip()
+                    pdf.set_font("Noto", "B", 14)
+                    pdf.cell(0, 8, text=text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                    pdf.set_font("Noto", "", 10)
+                else:
+                    pdf.set_font("Noto", "", 10)
+                    pdf.cell(0, 5, text=subline, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                
         pdf.output(filename)
-        print(f"[PDF] 成功輸出報告：{filename}")
 
     def run_analysis(self):
         if not self.file_path:
@@ -104,9 +113,7 @@ class LifetimeGUI:
             plotter.plot_mc_histogram()
             plotter.plot_simulated_vs_actual()
 
-            messagebox.showinfo("Success", "Analysis completed successfully!")
-
-            print("\n=== 分析流程全部完成，準備產出 PDF 報告 ===\n")
+            messagebox.showinfo("Success", "Analysis completed successfully! PDF report is saved!")
             self.save_output_to_pdf()
 
         except Exception as e:
