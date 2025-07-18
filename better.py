@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('TkAgg')
 from scipy.stats import weibull_min, lognorm, expon, ks_2samp
 from scipy.special import gamma
 from statsmodels.distributions.empirical_distribution import ECDF
@@ -69,7 +71,7 @@ class LifetimeAnalyzer:
         self.best_model = max(self.results, key=lambda k: self.results[k]['ll'])
 
     def plot_histogram(self):
-        fig1 = plt.figure(figsize=(8, 5))
+        plt.figure(figsize=(8, 5))
         plt.hist(self.data, bins=30, density=True, alpha=0.5, color='skyblue', edgecolor='black')
         plt.xlabel("Life Cycles")
         plt.ylabel("Probability Density")
@@ -79,7 +81,7 @@ class LifetimeAnalyzer:
         #plt.show()
 
     def plot_pdf_comparison(self):
-        fig2 = plt.figure(figsize=(8, 5))
+        plt.figure(figsize=(8, 5))
         plt.hist(self.data, bins=20, density=True, alpha=0.5)
         for name, res in self.results.items():
             plt.plot(self.x, res['pdf'], color=res['color'], label=res['label'])
@@ -92,7 +94,7 @@ class LifetimeAnalyzer:
         #plt.show()
 
     def plot_survival_comparison(self):
-        fig3 = plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(10, 6))
         for name, res in self.results.items():
             plt.plot(self.x, res['sf'], color=res['color'], label=res['label'])
             plt.axvline(res['mttf'], color=res['color'], linestyle='--', alpha=0.6)
@@ -210,7 +212,7 @@ class LifetimeAnalyzerPlot:
         eta_mean = np.mean(eta_samples)
         eta_ci = np.percentile(eta_samples, [2.5, 97.5])
 
-        fig4 = plt.figure(figsize=(12, 5))
+        plt.figure(figsize=(12, 5))
 
         plt.subplot(1, 2, 1)
         plt.hist(beta_samples, bins=30, color='skyblue', edgecolor='black', alpha=0.7)
@@ -246,7 +248,7 @@ class LifetimeAnalyzerPlot:
         ]
         labels = ['B10', 'B50', 'B90', 'B95', 'B99']
 
-        fig5 = plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(10, 6))
         plt.hist(simulated_data, bins=50, density=True, alpha=0.6, color='skyblue', edgecolor='black')
 
         for i, p in enumerate(percentiles):
@@ -272,7 +274,7 @@ class LifetimeAnalyzerPlot:
         x_vals = np.linspace(0, max(max(simulated_data), max(actual_data)), 500)
 
         # Histogram
-        fig6 = plt.figure(figsize=(12, 5))
+        plt.figure(figsize=(12, 5))
         plt.subplot(1, 2, 1)
         plt.hist(actual_data, bins=30, density=True, alpha=0.6, label='Actual', color='steelblue', edgecolor='black')
         plt.hist(simulated_data, bins=50, density=True, alpha=0.4, label='Simulated', color='orange', edgecolor='black')
@@ -282,6 +284,7 @@ class LifetimeAnalyzerPlot:
         plt.ylabel('Density')
         plt.legend()
         plt.grid(True, linestyle='--', alpha=0.5)
+        #plt.show
 
         # CDF + KS Test
         plt.subplot(1, 2, 2)
@@ -304,15 +307,13 @@ class LifetimeAnalyzerPlot:
         plt.plot(x_vals, weibull_min.cdf(x_vals, beta_mean, loc=loc, scale=eta_mean), 'r-', label='Theoretical CDF')
         plt.vlines(ks_x, ks_y1, ks_y2, color='black', linestyle=':', linewidth=1.5, label='KS Distance')
         plt.text(ks_x + 10, (ks_y1 + ks_y2) / 2, f"D={ks_stat:.3f}", color='black', fontsize=9)
-
         plt.title('CDF Comparison (with KS Test)')
         plt.xlabel('Lifetime')
         plt.ylabel('Cumulative Probability')
         plt.legend()
         plt.grid(True, linestyle='--', alpha=0.5)
-
         plt.tight_layout()
-        plt.show
+        plt.show()
 
         # KS 結論
         print(f"\n=== [4] Kolmogorov-Smirnov Test ===")

@@ -12,15 +12,15 @@ class LifetimeGUI:
 
         # ===== File Selection Section =====
         tk.Label(root, text="Input CSV File:").grid(row=0, column=0, sticky="e")
-        self.file_entry = tk.Entry(root, width=40)
+        self.file_entry = tk.Entry(root, width=50)
         self.file_entry.grid(row=0, column=1, padx=5, pady=5)
 
-        self.load_button = tk.Button(root, text="Upload", command=self.load_file)
+        self.load_button = tk.Button(root, text="Load", command=self.load_file)
         self.load_button.grid(row=0, column=2, padx=5, pady=5)
 
         # ===== Expected Lifecycle Section =====
         tk.Label(root, text="Expected Lifecycle (cycles):").grid(row=1, column=0, sticky="e")
-        self.lifecycle_entry = tk.Entry(root, width=10)
+        self.lifecycle_entry = tk.Entry(root, width=20)
         self.lifecycle_entry.grid(row=1, column=1, sticky="w", padx=5, pady=5)
 
         # ===== Execute Button =====
@@ -31,12 +31,9 @@ class LifetimeGUI:
         self.output_text = tk.Text(root, height=20, width=90, state='disabled', bg='black', fg='white')
         self.output_text.grid(row=3, column=0, columnspan=3, padx=10, pady=10)
 
-        self.output_buffer = []
         sys.stdout = TextRedirector(self.output_text)
         sys.stderr = TextRedirector(self.output_text)
 
-        log_text = ''.join(self.output_buffer)
-        self.show_output_window(log_text)
 
     def load_file(self):
         path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
@@ -83,28 +80,16 @@ class LifetimeGUI:
 
         except Exception as e:
             messagebox.showerror("Error during analysis", str(e))
-    
-    def show_output_window(self, content):
-        output_window = tk.Toplevel(self.root)
-        output_window.title("Analysis Output Log")
-        text_widget = tk.Text(output_window, height=30, width=100, bg='black', fg='white')
-        text_widget.pack(padx=10, pady=10)
-        text_widget.insert(tk.END, content)
-        text_widget.config(state='disabled')
-    
 
 class TextRedirector:
-    def __init__(self, widget, buffer_holder=None):
+    def __init__(self, widget):
         self.widget = widget
-        self.buffer_holder = buffer_holder
 
     def write(self, message):
         self.widget.configure(state='normal')
         self.widget.insert(tk.END, message)
         self.widget.see(tk.END)
         self.widget.configure(state='disabled')
-        if self.buffer_holder is not None:
-            self.buffer_holder.append(message)
 
     def flush(self):
         pass  # Required for file-like compatibility

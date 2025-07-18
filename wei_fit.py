@@ -5,8 +5,8 @@ from scipy.stats import weibull_min, lognorm, expon
 from scipy.special import gamma
 
 # === 載入資料 ===
-df = pd.read_csv("Nanboom2.csv")
-#df = pd.read_csv("Emperor pan and tilt test to failure.csv")
+#df = pd.read_csv("Nanboom2.csv")
+df = pd.read_csv("Emperor pan and tilt test to failure.csv")
 data = pd.to_numeric(df.iloc[:, 0], errors='coerce').dropna().values
 x = np.linspace(min(data), max(data), 200)
 
@@ -214,8 +214,8 @@ def reliability_prediction(original_data, beta, eta, target_time, n_monte_carlo=
     }
 
 # 預測在600時間單位時的可靠性
-reliability_pred = reliability_prediction(data, wb_beta, wb_eta, 600)
-print(f"在次數600時的可靠性: {reliability_pred['reliability_median']:.3f}")
+reliability_pred = reliability_prediction(data, wb_beta, wb_eta, 15000)
+print(f"在次數15000時的可靠性: {reliability_pred['reliability_median']:.3f}")
 print(f"95% confidence level: [{reliability_pred['reliability_lower']:.3f}, {reliability_pred['reliability_upper']:.3f}]")
 
 #######################################################################################################
@@ -251,7 +251,7 @@ plt.xlabel('Eta')
 plt.ylabel('Frequency')
 
 plt.tight_layout()
-plt.show()
+#plt.show()
 
 np.random.seed(0)
 mc_simulated_data = weibull_min.rvs(3.09, scale=729.22, size=50000)
