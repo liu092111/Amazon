@@ -1,7 +1,9 @@
 import tkinter as tk
 import sys
+import re
 from tkinter import filedialog, messagebox
 from better import LifetimeAnalyzer, LifetimeAnalyzerMC, LifetimeAnalyzerPlot
+from fpdf import FPDF
 import os
 
 class LifetimeGUI:
@@ -28,15 +30,9 @@ class LifetimeGUI:
         self.run_button.grid(row=2, column=1, pady=15)
 
         # ===== Console Output Section =====
-        self.output_text = tk.Text(root, height=20, width=90, state='disabled', bg='black', fg='white')
-        self.output_text.grid(row=3, column=0, columnspan=3, padx=10, pady=10)
-
         self.output_buffer = []
-        sys.stdout = TextRedirector(self.output_text)
-        sys.stderr = TextRedirector(self.output_text)
-
-        log_text = ''.join(self.output_buffer)
-        self.show_output_window(log_text)
+        sys.stdout = TextRedirector(buffer_holder=self.output_buffer)
+        sys.stderr = TextRedirector(buffer_holder=self.output_buffer)
 
     def load_file(self):
         path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
@@ -44,6 +40,35 @@ class LifetimeGUI:
             self.file_path = path
             self.file_entry.delete(0, tk.END)
             self.file_entry.insert(0, path)
+
+    def clean_text(text):
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        return ansi_escape.sub('', text)
+
+    def save_output_to_pdf(self, filename="Analysis_Report.pdf"):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+
+        # ✅ 使用支援 Unicode 的 TTF 字型
+        font_path = "fonts/NotoSans-Regular.ttf"  # 確保這個路徑正確
+        if not os.path.exists(font_path):
+            messagebox.showerror("Font Missing", f"請先下載 NotoSans-Regular.ttf 並放到 fonts 資料夾中。\n缺少：{font_path}")
+            return
+        pdf.add_font("Noto", "", font_path, uni=True)
+        pdf.set_font("Noto", size=10)
+
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
+        for line in self.output_buffer:
+            for subline in line.split('\n'):
+                try:
+                    pdf.cell(0, 8, txt=subline, ln=True)
+                except Exception as e:
+                    print(f"[Warning] 跳過一行無法編碼：{subline[:30]}...")
+
+        pdf.output(filename)
+        print(f"[PDF] 成功輸出報告：{filename}")
 
     def run_analysis(self):
         if not self.file_path:
@@ -81,9 +106,19 @@ class LifetimeGUI:
 
             messagebox.showinfo("Success", "Analysis completed successfully!")
 
+            print("\n=== 分析流程全部完成，準備產出 PDF 報告 ===\n")
+            self.save_output_to_pdf()
+
         except Exception as e:
             messagebox.showerror("Error during analysis", str(e))
+
+        self.save_output_to_pdf()
+
     
+    def clean_text(text):
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        return ansi_escape.sub('', text)
+        
     def show_output_window(self, content):
         output_window = tk.Toplevel(self.root)
         output_window.title("Analysis Output Log")
@@ -94,20 +129,16 @@ class LifetimeGUI:
     
 
 class TextRedirector:
-    def __init__(self, widget, buffer_holder=None):
-        self.widget = widget
+    def __init__(self, buffer_holder=None):
         self.buffer_holder = buffer_holder
+        
 
     def write(self, message):
-        self.widget.configure(state='normal')
-        self.widget.insert(tk.END, message)
-        self.widget.see(tk.END)
-        self.widget.configure(state='disabled')
         if self.buffer_holder is not None:
             self.buffer_holder.append(message)
 
     def flush(self):
-        pass  # Required for file-like compatibility
+        pass
 
 
 if __name__ == "__main__":
