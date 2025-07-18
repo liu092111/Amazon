@@ -125,15 +125,15 @@ class LifetimeAnalyzerMC:
         eta_ci = np.percentile(eta_samples, [2.5, 97.5])
         beta_mean = np.mean(beta_samples)
         eta_mean = np.mean(eta_samples)
-        print("\n=== [1] Bootstrap Analysis — Parameter Estimation ===")
+        print("\n[BOLD14] === [1] Bootstrap Analysis — Parameter Estimation ===")
         print(f"Method: Resampling from original dataset (n = {n_samples}) with replacement, {n_bootstrap} iterations")
         print(f"Estimated Weibull parameters:")
         print(f"  - Beta (shape):")
-        print(f"      ▸ 95% CI  : [{beta_ci[0]:.2f}, {beta_ci[1]:.2f}]")
-        print(f"      ▸ Mean    : {beta_mean:.2f}")
+        print(f"      - 95% CI  : [{beta_ci[0]:.2f}, {beta_ci[1]:.2f}]")
+        print(f"      - Mean    : {beta_mean:.2f}")
         print(f"  - Eta (scale):")
-        print(f"      ▸ 95% CI  : [{eta_ci[0]:.2f}, {eta_ci[1]:.2f}]")
-        print(f"      ▸ Mean    : {eta_mean:.2f}")
+        print(f"      - 95% CI  : [{eta_ci[0]:.2f}, {eta_ci[1]:.2f}]")
+        print(f"      - Mean    : {eta_mean:.2f}")
 
         self.beta = beta_mean
         self.eta = eta_mean
@@ -153,7 +153,7 @@ class LifetimeAnalyzerMC:
         simulated_data = weibull_min.rvs(beta, scale=eta, size=n_simulations)
         percentiles = np.percentile(simulated_data, [10, 50, 90, 95, 99])
         mttf = np.mean(simulated_data)
-        print("\n=== [2] Monte Carlo Simulation — Lifetime Prediction ===")
+        print("\n[BOLD14] === [2] Monte Carlo Simulation — Lifetime Prediction ===")
         print(f"Method: Simulated {n_simulations:,} failure times from Weibull(beta={beta:.2f}, eta={eta:.2f})")
         print(f"Predicted lifecycle percentiles:")
         print(f"  - B10 (10% fail)  : {percentiles[0]:.2f}")
@@ -182,7 +182,7 @@ class LifetimeAnalyzerMC:
         lower = np.percentile(reliabilities, (1 - ci) / 2 * 100)
         upper = np.percentile(reliabilities, (1 + ci) / 2 * 100)
         median = np.median(reliabilities)
-        print(f"\n=== [3] Reliability Estimation at {cycles} Cycles ===")
+        print(f"\n[BOLD14] === [3] Reliability Estimation at {cycles} Cycles ===")
         print(f"Method: Bootstrap reliability curve using {n_bootstrap} resampled datasets")
         print(f"Estimated reliability at cycle = {cycles}:")
         print(f"  - Median reliability     : {median:.3f}")
@@ -293,7 +293,7 @@ class LifetimeAnalyzerPlot:
         ks_stat, p_value = ks_2samp(actual_data, simulated_data)
 
         x_common = np.linspace(min(actual_data.min(), simulated_data.min()),
-                               max(actual_data.max(), simulated_data.max()), 1000)
+                                max(actual_data.max(), simulated_data.max()), 1000)
         y_actual = ECDF(actual_data)(x_common)
         y_sim = ECDF(simulated_data)(x_common)
         diff = np.abs(y_actual - y_sim)
@@ -316,10 +316,14 @@ class LifetimeAnalyzerPlot:
         plt.show()
 
         # KS 結論
-        print(f"\n=== [4] Kolmogorov-Smirnov Test ===")
+        print(f"\n[BOLD14] === [4] Kolmogorov-Smirnov Test ===")
         print(f"KS Statistic (D): {ks_stat:.4f}")
         print(f"P-value: {p_value:.4f}")
         if p_value > 0.05:
-            print("✅ Conclusion: Simulated and actual data are likely from the same distribution (p > 0.05).")
+            print("Conclusion: Simulated and actual data are likely from the same distribution (p > 0.05).")
         else:
+<<<<<<< HEAD
             print("❌ Conclusion: Simulated and actual data are significantly different (p < 0.05).")
+=======
+            print("Conclusion: Simulated and actual data are significantly different (p < 0.05).")
+>>>>>>> ef3c4b8c69031195922907dc3f4aef789606f6c8
