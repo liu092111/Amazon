@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import os
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('TkAgg')
@@ -10,7 +11,21 @@ from statsmodels.distributions.empirical_distribution import ECDF
 class LifetimeAnalyzer:
     def __init__(self, filepath):
         self.filepath = filepath
-        self.data = pd.to_numeric(pd.read_csv(filepath).iloc[:, 0], errors='coerce').dropna().values
+        ext = os.path.splitext(filepath)[-1].lower()
+
+        if ext == ".xlsx":
+            df = pd.read_excel(filepath, header=None)
+        elif ext in [".csv", ".txt"]:
+            df = pd.read_csv(filepath, header=None)
+        else:
+            raise ValueError("Unsupported file format. Please upload .csv, .txt, or .xlsx files.")
+
+        # 將所有欄列合併為一維陣列，支援 row/column 格式
+        flat_data = pd.to_numeric(df.values.flatten(), errors='coerce')
+        self.data = flat_data[~np.isnan(flat_data)]  # 移除 NaN
+        if len(self.data) == 0:
+            raise ValueError("No valid numeric data found in the file.")
+
         self.x = np.linspace(min(self.data), max(self.data), 200)
         self.results = {}
         self.best_model = None
@@ -71,39 +86,40 @@ class LifetimeAnalyzer:
         self.best_model = max(self.results, key=lambda k: self.results[k]['ll'])
 
     def plot_histogram(self):
-        plt.figure(figsize=(8, 5))
-        plt.hist(self.data, bins=30, density=True, alpha=0.5, color='skyblue', edgecolor='black')
-        plt.xlabel("Life Cycles")
-        plt.ylabel("Probability Density")
-        plt.title("Histogram of Lifetime Data")
-        plt.grid(True, linestyle='--', alpha=0.6)
-        plt.tight_layout()
-        #plt.show()
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.hist(self.data, bins=30, density=True, alpha=0.5, color='skyblue', edgecolor='black')
+        ax.set_xlabel("Life Cycles")
+        ax.set_ylabel("Probability Density")
+        ax.set_title("Histogram of Lifetime Data")
+        ax.grid(True, linestyle='--', alpha=0.6)
+        fig.tight_layout()
+        return fig
 
     def plot_pdf_comparison(self):
-        plt.figure(figsize=(8, 5))
-        plt.hist(self.data, bins=20, density=True, alpha=0.5)
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.hist(self.data, bins=30, density=True, alpha=0.5)
         for name, res in self.results.items():
-            plt.plot(self.x, res['pdf'], color=res['color'], label=res['label'])
-            plt.axvline(res['mttf'], color=res['color'], linestyle='--', alpha=0.6)
-        plt.xlabel("Time")
-        plt.ylabel("Frequency")
-        plt.title("PDF Distribution Comparison")
-        plt.legend(title=f"Best Fit: {self.best_model}", fontsize=10)
-        plt.grid(True)
-        #plt.show()
+            ax.plot(self.x, res['pdf'], color=res['color'], label=res['label'])
+            ax.axvline(res['mttf'], color=res['color'], linestyle='--', alpha=0.6)
+        ax.set_xlabel("Lifetime Cycles")
+        ax.set_ylabel("Frequency")
+        ax.set_title("PDF Distribution Comparison")
+        ax.legend(title=f"Best Fit: {self.best_model}", fontsize=10)
+        ax.grid(True)
+        fig.tight_layout()
+        return fig
 
     def plot_survival_comparison(self):
-        plt.figure(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(10, 6))
         for name, res in self.results.items():
-            plt.plot(self.x, res['sf'], color=res['color'], label=res['label'])
-            plt.axvline(res['mttf'], color=res['color'], linestyle='--', alpha=0.6)
-        plt.ylabel("Survival Probability")
-        plt.title("Survival Function Comparison")
-        plt.legend(title=f"Best Fit: {self.best_model}", fontsize=10)
-        plt.grid(True)
-        plt.tight_layout()
-        #plt.show()
+            ax.plot(self.x, res['sf'], color=res['color'], label=res['label'])
+            ax.axvline(res['mttf'], color=res['color'], linestyle='--', alpha=0.6)
+        ax.set_ylabel("Survival Probability")
+        ax.set_title("Survival Function Comparison")
+        ax.legend(title=f"Best Fit: {self.best_model}", fontsize=10)
+        ax.grid(True)
+        fig.tight_layout()
+        return fig
 
 class LifetimeAnalyzerMC:
     def __init__(self, data, beta=None, eta=None):
@@ -125,7 +141,7 @@ class LifetimeAnalyzerMC:
         eta_ci = np.percentile(eta_samples, [2.5, 97.5])
         beta_mean = np.mean(beta_samples)
         eta_mean = np.mean(eta_samples)
-        print("\n[BOLD14] === [1] Bootstrap Analysis — Parameter Estimation ===")
+        print("\n[BOLD14] === [1] Bootstrap Analysis - Parameter Estimation ===")
         print(f"Method: Resampling from original dataset (n = {n_samples}) with replacement, {n_bootstrap} iterations")
         print(f"Estimated Weibull parameters:")
         print(f"  - Beta (shape):")
@@ -137,6 +153,7 @@ class LifetimeAnalyzerMC:
 
         self.beta = beta_mean
         self.eta = eta_mean
+        
 
         return {
             'beta_ci': beta_ci,
@@ -153,7 +170,7 @@ class LifetimeAnalyzerMC:
         simulated_data = weibull_min.rvs(beta, scale=eta, size=n_simulations)
         percentiles = np.percentile(simulated_data, [10, 50, 90, 95, 99])
         mttf = np.mean(simulated_data)
-        print("\n[BOLD14] === [2] Monte Carlo Simulation — Lifetime Prediction ===")
+        print("\n[BOLD14] === [2] Simulation - Lifetime Prediction ===")
         print(f"Method: Simulated {n_simulations:,} failure times from Weibull(beta={beta:.2f}, eta={eta:.2f})")
         print(f"Predicted lifecycle percentiles:")
         print(f"  - B10 (10% fail)  : {percentiles[0]:.2f}")
@@ -195,10 +212,6 @@ class LifetimeAnalyzerMC:
         }
 
 class LifetimeAnalyzerPlot:
-    """
-    提供 Bootstrap 參數分布與蒙特卡羅壽命分布的視覺化功能。
-    """
-
     def __init__(self, data, bootstrap_result=None, mc_result=None):
         self.data = np.array(data)
         self.bootstrap_result = bootstrap_result
@@ -212,30 +225,28 @@ class LifetimeAnalyzerPlot:
         eta_mean = np.mean(eta_samples)
         eta_ci = np.percentile(eta_samples, [2.5, 97.5])
 
-        plt.figure(figsize=(12, 5))
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5))
 
-        plt.subplot(1, 2, 1)
-        plt.hist(beta_samples, bins=30, color='skyblue', edgecolor='black', alpha=0.7)
-        plt.axvline(beta_mean, color='red', linestyle='-', label=f'Mean = {beta_mean:.2f}')
-        plt.axvline(beta_ci[0], color='green', linestyle='--', label=f'2.5% = {beta_ci[0]:.2f}')
-        plt.axvline(beta_ci[1], color='green', linestyle='--', label=f'97.5% = {beta_ci[1]:.2f}')
-        plt.title('Bootstrap Distribution of Beta')
-        plt.xlabel('Beta')
-        plt.ylabel('Frequency')
-        plt.legend()
+        axs[0].hist(beta_samples, bins=30, color='skyblue', edgecolor='black', alpha=0.7)
+        axs[0].axvline(beta_mean, color='red', linestyle='-', label=f'Mean = {beta_mean:.2f}')
+        axs[0].axvline(beta_ci[0], color='green', linestyle='--', label=f'2.5% = {beta_ci[0]:.2f}')
+        axs[0].axvline(beta_ci[1], color='green', linestyle='--', label=f'97.5% = {beta_ci[1]:.2f}')
+        axs[0].set_title('Bootstrap Distribution of Beta')
+        axs[0].set_xlabel('Beta')
+        axs[0].set_ylabel('Frequency')
+        axs[0].legend()
 
-        plt.subplot(1, 2, 2)
-        plt.hist(eta_samples, bins=30, color='lightgreen', edgecolor='black', alpha=0.7)
-        plt.axvline(eta_mean, color='red', linestyle='-', label=f'Mean = {eta_mean:.2f}')
-        plt.axvline(eta_ci[0], color='green', linestyle='--', label=f'2.5% = {eta_ci[0]:.2f}')
-        plt.axvline(eta_ci[1], color='green', linestyle='--', label=f'97.5% = {eta_ci[1]:.2f}')
-        plt.title('Bootstrap Distribution of Eta')
-        plt.xlabel('Eta')
-        plt.ylabel('Frequency')
-        plt.legend()
+        axs[1].hist(eta_samples, bins=30, color='lightgreen', edgecolor='black', alpha=0.7)
+        axs[1].axvline(eta_mean, color='red', linestyle='-', label=f'Mean = {eta_mean:.2f}')
+        axs[1].axvline(eta_ci[0], color='green', linestyle='--', label=f'2.5% = {eta_ci[0]:.2f}')
+        axs[1].axvline(eta_ci[1], color='green', linestyle='--', label=f'97.5% = {eta_ci[1]:.2f}')
+        axs[1].set_title('Bootstrap Distribution of Eta')
+        axs[1].set_xlabel('Eta')
+        axs[1].set_ylabel('Frequency')
+        axs[1].legend()
 
-        plt.tight_layout()
-        #plt.show()
+        fig.tight_layout()
+        return fig
 
     def plot_mc_histogram(self):
         simulated_data = self.mc_result['simulated_data']
@@ -248,52 +259,47 @@ class LifetimeAnalyzerPlot:
         ]
         labels = ['B10', 'B50', 'B90', 'B95', 'B99']
 
-        plt.figure(figsize=(10, 6))
-        plt.hist(simulated_data, bins=50, density=True, alpha=0.6, color='skyblue', edgecolor='black')
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.hist(simulated_data, bins=50, density=True, alpha=0.6, color='skyblue', edgecolor='black')
 
         for i, p in enumerate(percentiles):
-            plt.axvline(p, color='red', linestyle='--', alpha=0.7)
-            y_text = plt.ylim()[1] * (0.85 - i * 0.03)
-            x_text = p + (plt.xlim()[1] - plt.xlim()[0]) * 0.01
-            plt.text(x_text, y_text, f'{labels[i]}: {p:.1f}', rotation=90,
-                     verticalalignment='center', color='red', fontsize=9)
+            ax.axvline(p, color='red', linestyle='--', alpha=0.7)
+            y_text = ax.get_ylim()[1] * (0.85 - i * 0.03)
+            x_text = p + (ax.get_xlim()[1] - ax.get_xlim()[0]) * 0.01
+            ax.text(x_text, y_text, f'{labels[i]}: {p:.1f}', rotation=90,
+                    verticalalignment='center', color='red', fontsize=9)
 
-        plt.title('Monte Carlo Simulated Lifetime Distribution')
-        plt.xlabel('Lifetime')
-        plt.ylabel('Density')
-        plt.grid(True, linestyle='--', alpha=0.6)
-        plt.tight_layout()
-        #plt.show()
+        ax.set_title('Monte Carlo Simulated Lifetime Distribution')
+        ax.set_xlabel('Lifetime')
+        ax.set_ylabel('Density')
+        ax.grid(True, linestyle='--', alpha=0.6)
+        fig.tight_layout()
+        return fig
 
     def plot_simulated_vs_actual(self):
         simulated_data = self.mc_result['simulated_data']
         actual_data = self.data
         beta_mean = self.bootstrap_result['beta_mean']
         eta_mean = self.bootstrap_result['eta_mean']
-        loc = 0  # 一律假設 floc = 0
+        loc = 0
         x_vals = np.linspace(0, max(max(simulated_data), max(actual_data)), 500)
 
-        # Histogram
-        plt.figure(figsize=(12, 5))
-        plt.subplot(1, 2, 1)
-        plt.hist(actual_data, bins=30, density=True, alpha=0.6, label='Actual', color='steelblue', edgecolor='black')
-        plt.hist(simulated_data, bins=50, density=True, alpha=0.4, label='Simulated', color='orange', edgecolor='black')
-        plt.plot(x_vals, weibull_min.pdf(x_vals, beta_mean, loc=loc, scale=eta_mean), 'r--', lw=2, label='Theoretical PDF')
-        plt.title('Histogram: Simulated vs Actual')
-        plt.xlabel('Lifetime')
-        plt.ylabel('Density')
-        plt.legend()
-        plt.grid(True, linestyle='--', alpha=0.5)
-        #plt.show
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5))
 
-        # CDF + KS Test
-        plt.subplot(1, 2, 2)
+        axs[0].hist(actual_data, bins=30, density=True, alpha=0.6, label='Actual', color='steelblue', edgecolor='black')
+        axs[0].hist(simulated_data, bins=50, density=True, alpha=0.4, label='Simulated', color='orange', edgecolor='black')
+        axs[0].plot(x_vals, weibull_min.pdf(x_vals, beta_mean, loc=loc, scale=eta_mean), 'r--', lw=2, label='Theoretical PDF')
+        axs[0].set_title('Histogram: Simulated vs Actual')
+        axs[0].set_xlabel('Lifetime')
+        axs[0].set_ylabel('Density')
+        axs[0].legend()
+        axs[0].grid(True, linestyle='--', alpha=0.5)
+
         ecdf_actual = ECDF(actual_data)
         ecdf_sim = ECDF(simulated_data)
         ks_stat, p_value = ks_2samp(actual_data, simulated_data)
-
         x_common = np.linspace(min(actual_data.min(), simulated_data.min()),
-                                max(actual_data.max(), simulated_data.max()), 1000)
+                               max(actual_data.max(), simulated_data.max()), 1000)
         y_actual = ECDF(actual_data)(x_common)
         y_sim = ECDF(simulated_data)(x_common)
         diff = np.abs(y_actual - y_sim)
@@ -302,28 +308,27 @@ class LifetimeAnalyzerPlot:
         ks_y1 = y_actual[max_diff_index]
         ks_y2 = y_sim[max_diff_index]
 
-        plt.plot(ecdf_actual.x, ecdf_actual.y, label='Empirical CDF (Actual)', lw=2, color='blue')
-        plt.plot(ecdf_sim.x, ecdf_sim.y, label='Empirical CDF (Simulated)', lw=2, color='orange', linestyle='--')
-        plt.plot(x_vals, weibull_min.cdf(x_vals, beta_mean, loc=loc, scale=eta_mean), 'r-', label='Theoretical CDF')
-        plt.vlines(ks_x, ks_y1, ks_y2, color='black', linestyle=':', linewidth=1.5, label='KS Distance')
-        plt.text(ks_x + 10, (ks_y1 + ks_y2) / 2, f"D={ks_stat:.3f}", color='black', fontsize=9)
-        plt.title('CDF Comparison (with KS Test)')
-        plt.xlabel('Lifetime')
-        plt.ylabel('Cumulative Probability')
-        plt.legend()
-        plt.grid(True, linestyle='--', alpha=0.5)
-        plt.tight_layout()
-        plt.show()
+        axs[1].plot(ecdf_actual.x, ecdf_actual.y, label='Empirical CDF (Actual)', lw=2, color='blue')
+        axs[1].plot(ecdf_sim.x, ecdf_sim.y, label='Empirical CDF (Simulated)', lw=2, color='orange', linestyle='--')
+        axs[1].plot(x_vals, weibull_min.cdf(x_vals, beta_mean, loc=loc, scale=eta_mean), 'r-', label='Theoretical CDF')
+        axs[1].vlines(ks_x, ks_y1, ks_y2, color='black', linestyle=':', linewidth=1.5, label='KS Distance')
+        axs[1].text(ks_x + 10, (ks_y1 + ks_y2) / 2, f"D={ks_stat:.3f}", color='black', fontsize=9)
+        axs[1].set_title('CDF Comparison (with KS Test)')
+        axs[1].set_xlabel('Lifetime')
+        axs[1].set_ylabel('Cumulative Probability')
+        axs[1].legend()
+        axs[1].grid(True, linestyle='--', alpha=0.5)
 
-        # KS 結論
-        print(f"\n[BOLD14] === [4] Kolmogorov-Smirnov Test ===")
-        print(f"KS Statistic (D): {ks_stat:.4f}")
-        print(f"P-value: {p_value:.4f}")
-        if p_value > 0.05:
-            print("Conclusion: Simulated and actual data are likely from the same distribution (p > 0.05).")
-        else:
-<<<<<<< HEAD
-            print("❌ Conclusion: Simulated and actual data are significantly different (p < 0.05).")
-=======
-            print("Conclusion: Simulated and actual data are significantly different (p < 0.05).")
->>>>>>> ef3c4b8c69031195922907dc3f4aef789606f6c8
+        fig.tight_layout()
+
+        ks_result = {
+            'ks_stat': ks_stat,
+            'p_value': p_value,
+            'conclusion': (
+                "Simulated and actual data are likely from the same distribution (p > 0.05)."
+                if p_value > 0.05
+                else "Simulated and actual data are significantly different (p < 0.05)."
+            )
+        }
+        return fig, ks_result
+
