@@ -1,0 +1,114 @@
+[33mcommit 2ac2fc137968eca75e0a05f59f803a1076b7f9a9[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: Liu <floraliu@amazon.com>
+Date:   Tue Aug 5 10:28:10 2025 +0800
+
+    Remove large files and update .gitignore
+
+[33mcommit dd9742a53d2c0e0754167fbcb4ebe8e63af815d1[m
+Author: Liu <floraliu@amazon.com>
+Date:   Tue Aug 5 10:25:14 2025 +0800
+
+    add large files via git lfs
+
+[33mcommit 6a6a23a0ffa115e4d6f04d0d67b44f596e66bc1a[m
+Author: Liu <floraliu@amazon.com>
+Date:   Mon Aug 4 17:29:08 2025 +0800
+
+    edit gui to version 4 and add an report builder to generate analysis report
+
+[33mcommit f8e0f1f7ea3498b77160f1cc93be7e424d26f789[m
+Author: Liu <floraliu@amazon.com>
+Date:   Mon Aug 4 16:43:58 2025 +0800
+
+     update gui to version4 and add an report builder, so that we can edit our pdf report if we want
+
+[33mcommit d11acfb581b16af0fba4824a7b247d9f6e9ed00c[m
+Merge: 9377894 ef3c4b8
+Author: Liu <floraliu@amazon.com>
+Date:   Sat Jul 19 00:01:38 2025 +0800
+
+    add gui2 (second version)
+
+[33mcommit 93778946f451a22a8e2d72222907ec849629f882[m
+Author: Liu <floraliu@amazon.com>
+Date:   Fri Jul 18 23:55:00 2025 +0800
+
+    edit gui
+
+[33mcommit ef3c4b8c69031195922907dc3f4aef789606f6c8[m[33m ([m[1;31morigin/main[m[33m)[m
+Author: liu092111 <liu092111@gmail.com>
+Date:   Fri Jul 18 23:47:29 2025 +0800
+
+    rename gui.exe
+
+[33mcommit 6501132469846255a5d3d211859c3d9af270b6a0[m
+Author: liu092111 <liu092111@gmail.com>
+Date:   Fri Jul 18 23:45:14 2025 +0800
+
+    add font
+
+[33mcommit 1eecad5a0d6551c1122fa3111e39de7fb2693fa8[m
+Author: liu092111 <liu092111@gmail.com>
+Date:   Fri Jul 18 23:44:18 2025 +0800
+
+    edit pdf report (with bold font
+
+[33mcommit ae591ace68eaf7a3ab0ec5ea332c4564666dd0f0[m
+Author: liu092111 <liu092111@gmail.com>
+Date:   Fri Jul 18 22:43:51 2025 +0800
+
+    save output to pdf report
+
+[33mcommit 405487e988b00ab3904f4483a35be8079e1211c9[m
+Author: liu092111 <liu092111@gmail.com>
+Date:   Tue Jul 15 00:23:39 2025 +0800
+
+    edit plotting bug
+
+[33mcommit f35d00184a02b879e083b9819f7224eb629ebadd[m
+Author: Liu <floraliu@amazon.com>
+Date:   Mon Jul 14 16:51:29 2025 +0800
+
+    add gui and edit some bug of better, better_class
+
+[33mcommit 3153ce21961798cc355a1665c07c2adefe87e43c[m
+Author: Liu <floraliu@amazon.com>
+Date:   Fri Jul 11 15:12:15 2025 +0800
+
+    edit Kolmogorov-Smirnov test, considering weibull loc issue
+
+[33mcommit 36ed05677c50f378a6ba92bdec37e620b81b72c3[m
+Author: Liu <floraliu@amazon.com>
+Date:   Thu Jul 10 17:02:12 2025 +0800
+
+    Kolmogorov-Smirnov Test and p value
+
+[33mcommit fc16078bf099cbaff461d6306264f80926872525[m
+Author: Liu <floraliu@amazon.com>
+Date:   Thu Jul 10 14:37:13 2025 +0800
+
+    write class
+
+[33mcommit 61144f4cc80a15470306e5533b68c9d16781f5cc[m
+Author: Liu <floraliu@amazon.com>
+Date:   Fri Jul 4 17:02:04 2025 +0800
+
+    reorganize wei_fit to class
+
+[33mcommit 985f74b3ee72482a3bec3a951e23f24715fd1362[m
+Author: Liu <floraliu@amazon.com>
+Date:   Thu Jul 3 10:08:55 2025 +0800
+
+    add wei_fit label
+
+[33mcommit 654f9a2e189e811e36dd6693f242da7ef129c474[m
+Author: Liu <floraliu@amazon.com>
+Date:   Tue Jul 1 14:02:10 2025 +0800
+
+    add monte carlo simulation
+
+[33mcommit ad2479dd65b7ffebb97a6da7f34476e96ee256f4[m
+Author: Liu <floraliu@amazon.com>
+Date:   Tue Jun 24 16:50:39 2025 +0800
+
+    first commit, basic distribution curve fit
