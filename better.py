@@ -269,7 +269,7 @@ class LifetimeAnalyzerPlot:
             ax.text(x_text, y_text, f'{labels[i]}: {p:.1f}', rotation=90,
                     verticalalignment='center', color='red', fontsize=9)
 
-        ax.set_title('Monte Carlo Simulated Lifetime Distribution')
+        ax.set_title('Stochastic Simulated Lifetime Forecasting Distribution')
         ax.set_xlabel('Lifetime')
         ax.set_ylabel('Density')
         ax.grid(True, linestyle='--', alpha=0.6)

@@ -1,5 +1,6 @@
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
+from math import floor
 import textwrap
 import os
 import tempfile
@@ -46,8 +47,10 @@ class ReportBuilder:
                     text = subline.replace("[BOLD14]", "").strip()
                     self.pdf.set_font("Arial", "B", 14)
                     
-                    # 使用較小的寬度值來確保文字適合頁面
-                    wrapped_lines = textwrap.wrap(text, width=100)
+                    # 使用合適的寬度值來確保文字適合頁面
+                    char_width_mm = 2.0  
+                    max_chars = floor(self.effective_width / char_width_mm)
+                    wrapped_lines = textwrap.wrap(text, width=max_chars)
                     for wrapped_line in wrapped_lines:
                         self.pdf.cell(0, 8, wrapped_line, ln=True)
                     
@@ -96,8 +99,6 @@ class ReportBuilder:
             self.add_text()
             self.add_figures()
             self.pdf.output(filename)
-            print(f"PDF report generated: {filename}")
             
         except Exception as e:
-            print(f"Error generating PDF: {e}")
             raise e
